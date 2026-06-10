@@ -1,0 +1,31 @@
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets — never commit real .env
+.env
+backend/.env
+
+# Databases / logs
+*.db
+*.log
+server.log
+server_err.log
+vite.log
+vite_err.log
+
+# Frontend build artifacts
+node_modules/
+dist/
+.cache/
+
+# Claude Code / IDE tooling
+.agents/
+.claude/
+.code-review-graph/
+skills-lock.json
