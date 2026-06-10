@@ -1,0 +1,86 @@
+import { useRef, useCallback } from 'react'
+
+export function useTelemetry(sessionId) {
+  const d = useRef({
+    keystroke_intervals: [],
+    mouse_positions: [],
+    field_timings: {},
+    field_fill_times: [],
+    start_time: Date.now(),
+    tab_switches: 0,
+    last_key_time: null,
+  })
+
+  const onKeyDown = useCallback(() => {
+    const now = Date.now()
+    if (d.current.last_key_time !== null) {
+      d.current.keystroke_intervals.push(now - d.current.last_key_time)
+    }
+    d.current.last_key_time = now
+  }, [])
+
+  const onMouseMove = useCallback((e) => {
+    // Sample every 3rd event to avoid flooding
+    if (d.current.mouse_positions.length % 3 === 0) {
+      d.current.mouse_positions.push({ x: e.clientX, y: e.clientY, t: Date.now() })
+    }
+  }, [])
+
+  const onFieldFocus = useCallback((fieldName) => {
+    d.current.field_timings[fieldName] = { start: Date.now() }
+  }, [])
+
+  const onFieldBlur = useCallback((fieldName) => {
+    const timing = d.current.field_timings[fieldName]
+    if (timing) {
+      d.current.field_fill_times.push(Date.now() - timing.start)
+    }
+  }, [])
+
+  const getPayload = useCallback(() => {
+    const intervals = d.current.keystroke_intervals
+    const mean = intervals.length > 0
+      ? intervals.reduce((a, b) => a + b, 0) / intervals.length : 0
+    const variance = intervals.length > 1
+      ? Math.sqrt(intervals.reduce((s, v) => s + (v - mean) ** 2, 0) / intervals.length) : 0
+
+    const positions = d.current.mouse_positions
+    let entropy = 0
+    if (positions.length > 2) {
+      const angles = []
+      for (let i = 1; i < positions.length; i++) {
+        const dx = positions[i].x - positions[i - 1].x
+        const dy = positions[i].y - positions[i - 1].y
+        if (dx !== 0 || dy !== 0) angles.push(Math.atan2(dy, dx))
+      }
+      if (angles.length > 1) {
+        const aMean = angles.reduce((a, b) => a + b, 0) / angles.length
+        entropy = Math.sqrt(angles.reduce((s, a) => s + (a - aMean) ** 2, 0) / angles.length)
+      }
+    }
+
+    const fillTimes = d.current.field_fill_times
+    const avgFill = fillTimes.length > 0
+      ? fillTimes.reduce((a, b) => a + b, 0) / fillTimes.length : 0
+    const instantFills = fillTimes.filter(t => t < 80).length
+    const timeOnPage = (Date.now() - d.current.start_time) / 1000
+
+    return {
+      session_id: sessionId,
+      keystroke_intervals: intervals.slice(-20),
+      keystroke_variance: Math.round(variance),
+      avg_keystroke_interval: Math.round(mean),
+      mouse_movement_count: positions.length,
+      mouse_entropy: parseFloat(entropy.toFixed(3)),
+      field_fill_speeds: fillTimes,
+      avg_fill_speed: Math.round(avgFill),
+      instant_fills: instantFills,
+      time_on_page: parseFloat(timeOnPage.toFixed(1)),
+      tab_switches: d.current.tab_switches,
+      user_agent_consistent: !navigator.webdriver,
+      field_count: d.current.field_fill_times.length,
+    }
+  }, [sessionId])
+
+  return { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, getPayload }
+}
