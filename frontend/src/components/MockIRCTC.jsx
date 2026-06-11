@@ -318,7 +318,11 @@ export default function MockIRCTC() {
   const navigate = useNavigate()
   const sessionId = useRef(genSessionId())
   const scoreInterval = useRef(null)
-  const { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, getPayload } = useTelemetry(sessionId.current)
+  const { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, onAutoFill, getPayload } = useTelemetry(sessionId.current)
+
+  const makeAutoFillHandler = (fieldName) => (e) => {
+    if (e.nativeEvent?.inputType === 'insertReplacedText') onAutoFill(fieldName)
+  }
   const { queue, stats, connected } = useQueue()
   // Banner position comes straight from the WebSocket queue snapshot so it can
   // never disagree with the queue panel; API-reported position is the fallback
@@ -680,13 +684,15 @@ export default function MockIRCTC() {
                             <label style={labelStyle} htmlFor="pname">Passenger Name</label>
                             <input id="pname" style={inputStyle} placeholder="As per Aadhaar / ID" required
                               value={form.name} onChange={e => handleField('name', e.target.value)}
-                              onFocus={() => onFieldFocus('name')} onBlur={() => onFieldBlur('name')} />
+                              onFocus={() => onFieldFocus('name')} onBlur={() => onFieldBlur('name')}
+                              onInput={makeAutoFillHandler('name')} />
                           </div>
                           <div>
                             <label style={labelStyle} htmlFor="age">Age</label>
                             <input id="age" style={inputStyle} type="number" placeholder="Age" min="1" max="120" required
                               value={form.age} onChange={e => handleField('age', e.target.value)}
-                              onFocus={() => onFieldFocus('age')} onBlur={() => onFieldBlur('age')} />
+                              onFocus={() => onFieldFocus('age')} onBlur={() => onFieldBlur('age')}
+                              onInput={makeAutoFillHandler('age')} />
                           </div>
                           <div>
                             <label style={labelStyle}>Gender</label>
@@ -702,7 +708,8 @@ export default function MockIRCTC() {
                             <label style={labelStyle} htmlFor="phone">Mobile Number</label>
                             <input id="phone" style={inputStyle} type="tel" placeholder="10-digit mobile" required
                               value={form.phone} onChange={e => handleField('phone', e.target.value)}
-                              onFocus={() => onFieldFocus('phone')} onBlur={() => onFieldBlur('phone')} />
+                              onFocus={() => onFieldFocus('phone')} onBlur={() => onFieldBlur('phone')}
+                              onInput={makeAutoFillHandler('phone')} />
                           </div>
                           <div>
                             <label style={labelStyle}>Berth Preference</label>

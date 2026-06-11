@@ -32,8 +32,16 @@ export function useTelemetry(sessionId) {
 
   const onFieldBlur = useCallback((fieldName) => {
     const timing = d.current.field_timings[fieldName]
-    if (timing) {
+    if (timing && !timing.autofilled) {
       d.current.field_fill_times.push(Date.now() - timing.start)
+    }
+  }, [])
+
+  // Called when browser autofill is detected (inputType === 'insertReplacedText').
+  // Marks the field so its sub-10ms fill time is not counted as a bot signal.
+  const onAutoFill = useCallback((fieldName) => {
+    if (d.current.field_timings[fieldName]) {
+      d.current.field_timings[fieldName].autofilled = true
     }
   }, [])
 
@@ -82,5 +90,5 @@ export function useTelemetry(sessionId) {
     }
   }, [sessionId])
 
-  return { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, getPayload }
+  return { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, onAutoFill, getPayload }
 }
