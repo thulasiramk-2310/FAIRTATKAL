@@ -52,11 +52,11 @@ def score_session(payload: TelemetryPayload) -> ScoreResponse:
 
         prob_human = float(model.predict_proba(X)[0][1])
 
-        # Browser autofill fills fields in < 10ms with no keydown events —
-        # same signature as a bot script. If the user's browser autocompleted
-        # the form, treat that as confirmed human intent and floor the score.
-        if payload.autofill_used and prob_human < 0.6:
-            prob_human = 0.6
+        # Browser autofill is a strong human signal — bots fill forms via
+        # Playwright/httpx and never use a browser's saved credentials.
+        # A returning passenger who autofills should be rewarded, not penalised.
+        if payload.autofill_used and prob_human < 0.78:
+            prob_human = 0.78
 
         human_score = round(prob_human * 100, 1)
         is_bot = prob_human < 0.5
