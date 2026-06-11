@@ -26,6 +26,19 @@ export async function getQueueStatus(sessionId) {
   return r.json()
 }
 
+export async function bookTicket(sessionId) {
+  const r = await fetch(`${BASE}/queue/book`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId }),
+  })
+  if (!r.ok) {
+    const err = await r.json()
+    throw new Error(err.detail || 'Booking denied')
+  }
+  return r.json()
+}
+
 export async function resetQueue() {
   const r = await fetch(`${BASE}/admin/reset`, { method: 'POST', headers: adminHeaders })
   return r.json()

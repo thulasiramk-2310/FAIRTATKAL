@@ -62,6 +62,37 @@ async def join_queue(body: JoinQueueRequest, request: Request):
     return {"session_id": sid, "position": position, "total_in_queue": total}
 
 
+@router.post("/book")
+@limiter.limit("10/minute")
+async def book_ticket(body: JoinQueueRequest, request: Request):
+    """Server-side booking gate — rejects any session with human_score < 50."""
+    r = request.app.state.redis
+    sid = body.session_id
+    raw = await r.hgetall(f"session:{sid}")
+    if not raw:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    score = float(raw.get("human_score", 0))
+    label = raw.get("label", "unknown")
+
+    if score < 50:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Booking denied — behavioral score too low ({score}/100). Automated access suspected.",
+        )
+
+    rank = await r.zrevrank("queue:sessions", sid)
+    position = (rank or 0) + 1
+
+    return {
+        "session_id": sid,
+        "approved": True,
+        "human_score": score,
+        "label": label,
+        "position": position,
+    }
+
+
 @router.get("/status/{session_id}")
 async def queue_status(session_id: str, request: Request):
     r = request.app.state.redis

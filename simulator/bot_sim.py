@@ -112,6 +112,7 @@ async def run_bot(
     bot_num: int,
     delay: float,
     bot_type: str,
+    attempt_book: bool = False,
 ):
     is_adv = bot_type == "adversarial"
     tag = f"[Adv {bot_num:02d}]" if is_adv else f"[Bot {bot_num:02d}]"
@@ -169,13 +170,26 @@ async def run_bot(
                 print(f"  {tag} round {i+1}: RATE LIMITED")
                 break
 
+        if attempt_book:
+            r = await client.post(
+                f"{base_url}/queue/book",
+                json={"session_id": session_id},
+                headers=headers,
+                timeout=5,
+            )
+            if r.status_code == 200:
+                print(f"  {tag} ⚠️  BOOKING SUCCEEDED (score bypass!)")
+            else:
+                data = r.json()
+                print(f"  {tag} ✅ BOOKING BLOCKED — {data.get('detail', r.status_code)}")
+
     except httpx.RequestError as e:
         print(f"  {tag} Connection error: {e}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-async def main(count: int, delay: float, base_url: str, bot_type: str):
+async def main(count: int, delay: float, base_url: str, bot_type: str, attempt_book: bool = False):
     print(f"\n{'='*60}")
     print(f"  FairTatkal Bot Simulator")
     print(f"  {count} bots  |  type={bot_type}  |  target={base_url}")
@@ -213,6 +227,7 @@ async def main(count: int, delay: float, base_url: str, bot_type: str):
                     i + 1,
                     delay + random.uniform(0, delay * 0.4),
                     t,
+                    attempt_book=attempt_book,
                 )
             )
         await asyncio.gather(*tasks)
@@ -229,6 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("--count", type=int, default=20, help="Number of bots")
     parser.add_argument("--delay", type=float, default=0.1, help="Delay between scoring rounds (s)")
     parser.add_argument("--url", type=str, default="http://localhost:8000", help="Backend URL")
+    parser.add_argument("--book", action="store_true", help="Attempt booking after scoring (tests the /queue/book gate)")
     parser.add_argument(
         "--type",
         choices=["dumb", "adversarial", "mixed"],
@@ -236,4 +252,4 @@ if __name__ == "__main__":
         help="Bot type: dumb | adversarial | mixed",
     )
     args = parser.parse_args()
-    asyncio.run(main(args.count, args.delay, args.url, args.type))
+    asyncio.run(main(args.count, args.delay, args.url, args.type, args.book))

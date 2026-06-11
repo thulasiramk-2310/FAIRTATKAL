@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import LiveQueue from './LiveQueue'
 import { useTelemetry } from '../hooks/useTelemetry'
 import { useQueue } from '../hooks/useQueue'
-import { joinQueue, scoreSession, getQueueStatus } from '../lib/api'
+import { joinQueue, scoreSession, getQueueStatus, bookTicket } from '../lib/api'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -389,8 +389,8 @@ export default function MockIRCTC() {
     // Zero-value features (no typing yet) score lower than dumb bots because
     // avg_keystroke_interval=0 is outside the entire training distribution.
     // Require real keystroke data OR substantial mouse+time before scoring.
-    const hasKeyData = payload.keystroke_intervals.length >= 3
-    const hasMouseTime = payload.mouse_movement_count >= 15 && payload.time_on_page >= 15
+    const hasKeyData = payload.keystroke_intervals.length >= 6
+    const hasMouseTime = payload.mouse_movement_count >= 20 && payload.time_on_page >= 20
     if (!hasKeyData && !hasMouseTime) return
     scoreBusy.current = true
     try {
@@ -433,13 +433,12 @@ export default function MockIRCTC() {
     setBookingBlocked(false)
     setBooking(true)
     try {
-      const status = await getQueueStatus(sessionId.current)
-      if ((status.human_score ?? 50) < 50) {
-        setBookingBlocked(true)
-        setBooking(false)
-        return
-      }
-    } catch (_) {}
+      await bookTicket(sessionId.current)
+    } catch (_) {
+      setBookingBlocked(true)
+      setBooking(false)
+      return
+    }
     try { setMyScore(await scoreSession(getPayload())) } catch (_) {}
     await new Promise(r => setTimeout(r, 1200))
     setPnr('PNR' + Math.floor(Math.random() * 9000000 + 1000000))
