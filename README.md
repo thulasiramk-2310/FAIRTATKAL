@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![XGBoost](https://img.shields.io/badge/XGBoost-AUC_0.961-F7931E?style=flat-square)](https://xgboost.readthedocs.io)
 [![Redis](https://img.shields.io/badge/Redis-sorted_set_queue-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)]
 
 ---
 
@@ -311,7 +311,7 @@ Tests mock Redis entirely — no live infrastructure required. Coverage: health 
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+All rights reserved. This project was built for the FAR AWAY 2026 hackathon and is not open-sourced. No part of this codebase may be copied, modified, or distributed without explicit permission from the authors.
 
 ---
 
