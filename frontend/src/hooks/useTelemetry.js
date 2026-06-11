@@ -40,12 +40,19 @@ export function useTelemetry(sessionId) {
     d.current.field_fill_times.push(duration)
   }, [])
 
-  // Called when browser autofill is detected (inputType === 'insertReplacedText').
+  // Called when a field value changes without a preceding keydown (autofill or paste).
   const onAutoFill = useCallback((fieldName) => {
     if (d.current.field_timings[fieldName]) {
       d.current.field_timings[fieldName].autofilled = true
-      d.current.autofill_count += 1
     }
+    d.current.autofill_count += 1
+  }, [])
+
+  // Returns true if a keydown was recorded in the last 400ms.
+  // Used by onChange handlers to distinguish typing from autofill/paste.
+  const wasRecentKeyDown = useCallback(() => {
+    return d.current.last_key_time !== null &&
+      Date.now() - d.current.last_key_time < 400
   }, [])
 
   const getPayload = useCallback(() => {
@@ -94,5 +101,5 @@ export function useTelemetry(sessionId) {
     }
   }, [sessionId])
 
-  return { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, onAutoFill, getPayload }
+  return { onKeyDown, onMouseMove, onFieldFocus, onFieldBlur, onAutoFill, wasRecentKeyDown, getPayload }
 }
