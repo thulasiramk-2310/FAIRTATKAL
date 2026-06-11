@@ -16,6 +16,7 @@ class TelemetryPayload(BaseModel):
     tab_switches: Optional[int] = 0
     user_agent_consistent: Optional[bool] = True
     field_count: Optional[int] = 0
+    autofill_used: Optional[bool] = False
 
 
 class ScoreResponse(BaseModel):

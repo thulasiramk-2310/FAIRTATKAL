@@ -6,6 +6,7 @@ export function useTelemetry(sessionId) {
     mouse_positions: [],
     field_timings: {},
     field_fill_times: [],
+    autofill_count: 0,
     start_time: Date.now(),
     tab_switches: 0,
     last_key_time: null,
@@ -27,21 +28,23 @@ export function useTelemetry(sessionId) {
   }, [])
 
   const onFieldFocus = useCallback((fieldName) => {
-    d.current.field_timings[fieldName] = { start: Date.now() }
+    d.current.field_timings[fieldName] = { start: Date.now(), autofilled: false }
   }, [])
 
   const onFieldBlur = useCallback((fieldName) => {
     const timing = d.current.field_timings[fieldName]
-    if (timing && !timing.autofilled) {
-      d.current.field_fill_times.push(Date.now() - timing.start)
-    }
+    if (!timing) return
+    // Autofill fills in < 10ms — substitute a human-range fill time so the
+    // model doesn't mistake browser autocomplete for a bot script.
+    const duration = timing.autofilled ? 2000 : Date.now() - timing.start
+    d.current.field_fill_times.push(duration)
   }, [])
 
   // Called when browser autofill is detected (inputType === 'insertReplacedText').
-  // Marks the field so its sub-10ms fill time is not counted as a bot signal.
   const onAutoFill = useCallback((fieldName) => {
     if (d.current.field_timings[fieldName]) {
       d.current.field_timings[fieldName].autofilled = true
+      d.current.autofill_count += 1
     }
   }, [])
 
@@ -87,6 +90,7 @@ export function useTelemetry(sessionId) {
       tab_switches: d.current.tab_switches,
       user_agent_consistent: !navigator.webdriver,
       field_count: d.current.field_fill_times.length,
+      autofill_used: d.current.autofill_count > 0,
     }
   }, [sessionId])
 
