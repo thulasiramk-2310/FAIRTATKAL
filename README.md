@@ -1,31 +1,34 @@
-# FairTatkal 🛡️
+# FairTatkal
 
-> **Bot-proof fair-access system for Indian Railways Tatkal booking.**  
-> Built for FAR AWAY 2026 — India's Biggest International Hackathon | Railways theme.
+**Behavioral bot detection and fair-access queue for Indian Railways Tatkal booking.**
+
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![XGBoost](https://img.shields.io/badge/XGBoost-AUC_0.961-F7931E?style=flat-square)](https://xgboost.readthedocs.io)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 ---
 
 ## The Problem
 
-Indian Railways blocked **60 billion bot requests** in just 6 months (Jul–Dec 2025).  
-**92,877 real passengers** lost confirmed Tatkal tickets every single day in FY 2025-26.
+Indian Railways blocked **60 billion bot requests** in six months (Jul–Dec 2025).  
+**92,877 genuine passengers** lost confirmed Tatkal tickets every single day in FY 2025–26.
 
-Bots drain Tatkal quotas in seconds. Genuine passengers — people who actually need to travel — are left with waitlisted tickets while automated scripts hoard seats for resellers.
-
-IRCTC's current defense: CAPTCHA. Bots solve it in milliseconds.
+Automated scripts drain Tatkal quotas in seconds. Real passengers are left with waitlisted tickets while bots hoard seats for resellers. IRCTC's primary defense is CAPTCHA — which modern bots solve in under 200ms.
 
 ---
 
-## The Solution
+## How FairTatkal Works
 
-FairTatkal is a **behavioral fingerprinting middleware** that detects bots by how they interact with the booking form — not by asking them to identify traffic lights.
+FairTatkal runs a **behavioral fingerprinting layer** that analyzes *how* a user interacts with the booking form — keystroke cadence, mouse trajectory, field timing, and more — rather than asking them to solve a puzzle.
 
 ```
-Bot:   fills 8 fields in 40ms, zero mouse movement, instant tab navigation → score: 12/100
-Human: types naturally, moves mouse, hesitates on fields              → score: 87/100
+Bot:   8 fields filled in 40ms · zero mouse movement · instant tab jumps → score  12/100
+Human: natural typing · organic mouse path · hesitation on unfamiliar fields → score  87/100
 ```
 
-The queue is sorted by human score in real time. **Humans stay at the front. Bots get pushed to the back.**
+Every session gets a continuous human-likelihood score. The booking queue is a Redis sorted set keyed on that score — **humans hold the front, bots are pushed to the back in real time.**
 
 ---
 
@@ -33,18 +36,38 @@ The queue is sorted by human score in real time. **Humans stay at the front. Bot
 
 ```
 Browser (React)
-  ├── Mock IRCTC Tatkal UI
-  ├── Silent JS telemetry collector (keystrokes, mouse, form timing)
-  └── Live queue visualizer (WebSocket)
-        ↕ WebSocket
+  ├── Tatkal booking UI  (mock IRCTC form)
+  ├── Silent telemetry hook  (keystroke intervals, mouse entropy, form timing)
+  └── Live queue panel  (WebSocket — score + position update every 3 s)
+         ↕  WebSocket  /ws
 FastAPI Backend
-  ├── /session/score   ← behavioral scoring endpoint
-  ├── /queue/*         ← fair priority queue (Redis sorted set)
-  ├── /admin/*         ← operations dashboard
-  └── XGBoost model   ← trained on 10,000 synthetic sessions
-        ↑
-Redis (queue state, session data, stats)
+  ├── POST /session/score    behavioral scoring (XGBoost inference, ~0.003 ms)
+  ├── POST /queue/join       session registration + UA pre-filter
+  ├── GET  /queue/status     position lookup
+  ├── WS   /ws               real-time queue broadcast
+  └── POST /admin/reset      operations endpoint
+         ↕  async Redis calls
+Redis  (sorted set for queue · session hashes · counters)
+XGBoost model  (10 features · trained on 10,000 synthetic sessions)
 ```
+
+---
+
+## Behavioral Features
+
+| Feature | Bot signature | Human signature |
+|---|---|---|
+| Keystroke interval variance | < 10 ms | 150–300 ms |
+| Mouse movement count | 0–3 | 40–400+ |
+| Mouse entropy (direction spread) | ~0.01 | ~1.8 |
+| Field fill duration | 15–50 ms | 1,500–2,500 ms |
+| Instant fills (< 80 ms) | 4–8 | 0–1 |
+| Time on page | 0.5–3 s | 30–120 s |
+| WebDriver flag | Often `true` | `false` |
+
+The model includes an **adversarial bot class** — bots with randomized delays and simulated mouse jitter — to prevent simple evasion. AUC-ROC on the hold-out test set: **0.961**. False positive rate (humans flagged): **< 3%**.
+
+Scoring is gated: the system waits for `≥ 3 keystroke intervals` or `≥ 15 mouse events + 15 s on page` before emitting a score, so a fresh page load never penalizes a real user.
 
 ---
 
@@ -53,93 +76,110 @@ Redis (queue state, session data, stats)
 **Prerequisites:** Python 3.11+, Node 18+, Docker
 
 ```bash
-# Clone and enter
-git clone https://github.com/your-username/fairtatkal
-cd fairtatkal
+git clone https://github.com/thulasiramk-2310/FAIRTATKAL.git
+cd FAIRTATKAL
 
 # 1. Start Redis
 docker compose up -d
 
-# 2. Train the ML model (one time)
+# 2. Set up environment
+cp backend/.env.example backend/.env
+# Edit backend/.env — generate SECRET_KEY and ADMIN_KEY per the comments inside
+
+# 3. Train the ML model (one time)
 cd backend
 pip install -r requirements.txt
 python -m app.ml.train
 
-# 3. Start backend
+# 4. Start backend
 uvicorn app.main:app --reload --port 8000
 
-# 4. Start frontend (new terminal)
-cd frontend
+# 5. Start frontend
+cd ../frontend
 npm install && npm run dev
-
-# 5. Run bot simulation (new terminal, for demo)
-cd simulator
-pip install -r requirements.txt
-python bot_sim.py --count 20
 ```
 
-Open **http://localhost:5173** — booking UI + live queue  
-Open **http://localhost:5173/admin** — admin operations dashboard
+| URL | Purpose |
+|---|---|
+| http://localhost:5173 | Booking UI + live queue |
+| http://localhost:5173/admin | Admin dashboard |
+| http://localhost:8000/docs | Interactive API docs |
 
 ---
 
-## Demo Flow
+## Bot Simulator
 
-1. Open booking UI + admin dashboard side by side
-2. Run `python simulator/bot_sim.py --count 20`
-3. Watch 20 bots score red (avg: 18/100) and slide to queue back
-4. Open a new tab, fill the booking form naturally as a human
-5. Your card scores green (85+/100) and holds position #1
-6. Admin dashboard shows: bots blocked, detection rate, live stats
+A Playwright-based bot swarm ships with the project for load testing and demo use.
 
-Between takes: `./scripts/demo_reset.sh`
+```bash
+cd simulator
+pip install -r requirements.txt
 
----
+# Launch 20 concurrent bots
+python bot_sim.py --count 20
 
-## Behavioral Features
+# Tune aggression (seconds between requests)
+python bot_sim.py --count 50 --delay 0.02
+```
 
-| Feature | Bot signature | Human signature |
-|---------|--------------|-----------------|
-| Keystroke interval variance | < 10ms | 150–300ms |
-| Mouse movement count | 0–3 | 40–400+ |
-| Mouse entropy (direction variance) | ~0.01 | ~1.8 |
-| Field fill speed | 15–50ms | 1500–2500ms |
-| Instant fills (< 80ms) | 4–8 | 0–1 |
-| Time on page | 0.5–3s | 30–120s |
-| webdriver flag | Often true | False |
+Bots fill all form fields programmatically in under 50 ms, producing feature vectors far outside human distributions. Watch them score red and sink to queue bottom in real time on the admin dashboard.
+
+Reset between runs:
+
+```bash
+./scripts/demo_reset.sh   # flushes Redis, clears session state
+```
 
 ---
 
-## Results
+## Running Tests
 
-- XGBoost trained on 10,000 labeled sessions (6,000 human + 4,000 bot)
-- Includes sophisticated bots with randomized delays to evade detection
-- Test set AUC-ROC: **0.97+**
-- False positive rate (humans flagged as bots): **< 3%**
+```bash
+cd backend
+pytest tests/ -v
+```
+
+All tests use mocked Redis (no live infrastructure required). The test suite covers health check, queue join (with browser UA validation), and admin reset authentication.
 
 ---
 
 ## Tech Stack
 
-**Backend:** FastAPI · Redis · XGBoost · WebSocket · SQLite  
-**Frontend:** React · Vite · Framer Motion  
-**Simulator:** httpx (async bot swarm)  
-**Infra:** Docker Compose
+| Layer | Technology |
+|---|---|
+| Backend API | FastAPI, Uvicorn, Pydantic v2 |
+| Queue store | Redis (sorted sets + hashes) |
+| ML model | XGBoost, scikit-learn, NumPy |
+| Real-time | WebSocket (Starlette) |
+| Frontend | React 18, Vite, Tailwind CSS |
+| Bot simulator | Playwright (Python) |
+| Infrastructure | Docker Compose (Redis) |
 
 ---
 
-## Future Scope
+## Security Notes
 
-- Device fingerprinting (canvas, WebGL, font enumeration)
-- Federated learning across IRCTC zones — model improves without sharing raw data
-- Rate-adaptive queue sizing based on real-time demand forecasting
-- Integration with Aadhaar OTP for high-risk sessions (human_score < 40)
-- Open API for any Indian railway booking platform to integrate
+- `.env` is gitignored. Never commit real secrets.
+- The `/admin/reset` endpoint requires an `X-Admin-Key` header.
+- User-Agent pre-filtering blocks headless-browser and scripted HTTP clients at the join endpoint before ML scoring runs.
+- All environment variables are validated at startup with warnings for insecure defaults.
 
 ---
 
-## Team
+## Roadmap
 
-Built at FAR AWAY 2026 Hackathon — Railways theme.
+- [ ] Device fingerprinting (canvas hash, WebGL renderer, font enumeration)
+- [ ] Federated model updates across zones — improves detection without centralising raw behavioral data
+- [ ] Aadhaar OTP escalation for sessions with human score < 40
+- [ ] Real-time demand forecasting to resize queue slots dynamically
+- [ ] Public SDK for third-party Indian railway booking platforms
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
 
 > "The queue is finally fair."
