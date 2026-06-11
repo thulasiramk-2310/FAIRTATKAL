@@ -11,6 +11,19 @@
 
 ---
 
+## Screenshots
+
+**Booking UI — empty queue on load**
+![Booking UI](docs/screenshots/booking-ui.png)
+
+**Live queue — 15 bots detected and pushed to back (100% detection rate)**
+![Live Queue with bots](docs/screenshots/live-queue.png)
+
+**Admin dashboard — real-time detection stats**
+![Admin Dashboard](docs/screenshots/admin-dashboard.png)
+
+---
+
 ## The Problem
 
 Indian Railways blocked **60 billion bot requests** in six months (Jul–Dec 2025).  
