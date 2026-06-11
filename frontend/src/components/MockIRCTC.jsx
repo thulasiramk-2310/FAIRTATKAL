@@ -395,6 +395,11 @@ export default function MockIRCTC() {
     scoreBusy.current = true
     try {
       const result = await scoreSession(payload)
+      if (!result) {
+        // Session expired — re-join silently so scoring can resume
+        await joinQueue(sessionId.current)
+        return
+      }
       setMyScore(result)
       if (result.position) setMyPosition(result.position)
     } catch (_) {} finally { scoreBusy.current = false }

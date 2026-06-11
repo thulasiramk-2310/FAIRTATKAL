@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 function ScoreBar({ score }) {
@@ -19,7 +20,7 @@ function ScoreBar({ score }) {
   )
 }
 
-function QueueCard({ entry, highlightId }) {
+const QueueCard = forwardRef(function QueueCard({ entry, highlightId }, ref) {
   const isHighlighted = entry.session_id === highlightId
   const isBot = entry.is_bot
   // Fresh joins sit at the backend default of exactly 50 until the first
@@ -33,6 +34,7 @@ function QueueCard({ entry, highlightId }) {
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -92,7 +94,7 @@ function QueueCard({ entry, highlightId }) {
       </div>
     </motion.div>
   )
-}
+})
 
 // Queue data comes from the parent so the status banner and this panel
 // render from the same WebSocket snapshot and can never disagree.

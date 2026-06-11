@@ -17,6 +17,7 @@ export async function scoreSession(payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+  if (!r.ok) return null
   return r.json()
 }
 
