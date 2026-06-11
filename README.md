@@ -6,6 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![XGBoost](https://img.shields.io/badge/XGBoost-AUC_0.961-F7931E?style=flat-square)](https://xgboost.readthedocs.io)
+[![Redis](https://img.shields.io/badge/Redis-sorted_set_queue-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 ---
@@ -15,59 +16,176 @@
 Indian Railways blocked **60 billion bot requests** in six months (Jul–Dec 2025).  
 **92,877 genuine passengers** lost confirmed Tatkal tickets every single day in FY 2025–26.
 
-Automated scripts drain Tatkal quotas in seconds. Real passengers are left with waitlisted tickets while bots hoard seats for resellers. IRCTC's primary defense is CAPTCHA — which modern bots solve in under 200ms.
+Automated scripts drain Tatkal quotas in seconds. Real passengers are left with waitlisted tickets while bots hoard seats for resellers. IRCTC's primary defense is CAPTCHA — which modern bots solve in under 200 ms.
 
 ---
 
 ## How FairTatkal Works
 
-FairTatkal runs a **behavioral fingerprinting layer** that analyzes *how* a user interacts with the booking form — keystroke cadence, mouse trajectory, field timing, and more — rather than asking them to solve a puzzle.
+FairTatkal runs a **behavioral fingerprinting layer** that silently analyzes *how* a user interacts with the booking form — keystroke cadence, mouse trajectory, field timing, and more — without ever interrupting them with a puzzle.
 
 ```
-Bot:   8 fields filled in 40ms · zero mouse movement · instant tab jumps → score  12/100
-Human: natural typing · organic mouse path · hesitation on unfamiliar fields → score  87/100
+Bot:   8 fields filled in 40 ms · zero mouse movement · instant tab jumps  →  score  12 / 100
+Human: natural typing · organic mouse path · hesitation on unfamiliar fields →  score  87 / 100
 ```
 
-Every session gets a continuous human-likelihood score. The booking queue is a Redis sorted set keyed on that score — **humans hold the front, bots are pushed to the back in real time.**
+Every active session carries a continuously updated human-likelihood score. The booking queue is a **Redis sorted set** keyed on that score — humans hold the front, bots are pushed to the back in real time.
 
 ---
 
-## Architecture
+## System Architecture
 
+```mermaid
+graph TB
+    subgraph Browser["Browser (React + Vite)"]
+        UI[Tatkal Booking UI]
+        TEL[Silent Telemetry Hook<br/>keystrokes · mouse · timing]
+        QP[Live Queue Panel<br/>WebSocket]
+    end
+
+    subgraph Backend["FastAPI Backend"]
+        JOIN[POST /queue/join<br/>UA pre-filter]
+        SCORE[POST /session/score<br/>XGBoost inference]
+        WS[WS /ws<br/>real-time broadcast]
+        ADMIN[POST /admin/reset]
+    end
+
+    subgraph Store["Data Layer"]
+        REDIS[(Redis<br/>sorted set + hashes)]
+        MODEL[(XGBoost Model<br/>model.pkl)]
+    end
+
+    UI -->|1 - join on load| JOIN
+    TEL -->|2 - telemetry every 3s + on keystroke| SCORE
+    QP <-->|3 - live updates| WS
+    JOIN --> REDIS
+    SCORE --> MODEL
+    SCORE --> REDIS
+    WS --> REDIS
+    ADMIN --> REDIS
 ```
-Browser (React)
-  ├── Tatkal booking UI  (mock IRCTC form)
-  ├── Silent telemetry hook  (keystroke intervals, mouse entropy, form timing)
-  └── Live queue panel  (WebSocket — score + position update every 3 s)
-         ↕  WebSocket  /ws
-FastAPI Backend
-  ├── POST /session/score    behavioral scoring (XGBoost inference, ~0.003 ms)
-  ├── POST /queue/join       session registration + UA pre-filter
-  ├── GET  /queue/status     position lookup
-  ├── WS   /ws               real-time queue broadcast
-  └── POST /admin/reset      operations endpoint
-         ↕  async Redis calls
-Redis  (sorted set for queue · session hashes · counters)
-XGBoost model  (10 features · trained on 10,000 synthetic sessions)
+
+---
+
+## Bot Detection Flow
+
+```mermaid
+flowchart TD
+    A([User lands on booking page]) --> B[Session ID generated]
+    B --> C[POST /queue/join]
+    C --> D{User-Agent\nbot pattern?}
+    D -- Yes --> E[❌ 429 — Blocked immediately]
+    D -- No --> F[Added to Redis queue\nscore = 50 · label = unknown]
+    F --> G[Telemetry collection begins\nkeystrokes · mouse · timing]
+    G --> H{Interaction gate\n≥3 keystrokes OR\n≥15 mouse events + 15s}
+    H -- Not yet --> G
+    H -- Passed --> I[POST /session/score\ntelemetry payload sent]
+    I --> J[XGBoost scores 10 features\n~0.003 ms inference]
+    J --> K{human_score}
+    K -- "> 50 · Human" --> L[✅ Score stored · queue rank rises\nlabel = human · badge = green]
+    K -- "< 50 · Bot" --> M[🚨 Score stored · queue rank drops\nlabel = bot · badge = red]
+    L --> N[WebSocket broadcast\nall clients update]
+    M --> N
+    N --> O([Queue re-renders — humans front, bots back])
 ```
+
+---
+
+## Queue Priority Model
+
+```mermaid
+graph LR
+    subgraph Redis Sorted Set ["Redis Sorted Set  ·  queue:sessions"]
+        direction TB
+        H1["🟢 Human  score 91"]
+        H2["🟢 Human  score 84"]
+        H3["🟢 Human  score 76"]
+        B1["🔴 Bot     score 23"]
+        B2["🔴 Bot     score 14"]
+        B3["🔴 Bot     score  8"]
+    end
+
+    H1 --> POS1["Position #1 — books first"]
+    H2 --> POS2["Position #2"]
+    H3 --> POS3["Position #3"]
+    B1 --> POSN["Position #N"]
+    B2 --> POSN
+    B3 --> POSN
+```
+
+Scores are continuous and update on every telemetry event. A bot that adds artificial delays to mimic humans will still be caught — the model was trained on an **adversarial bot class** with randomized keystroke jitter.
 
 ---
 
 ## Behavioral Features
 
+The XGBoost model uses 10 features extracted from raw telemetry:
+
 | Feature | Bot signature | Human signature |
 |---|---|---|
 | Keystroke interval variance | < 10 ms | 150–300 ms |
+| Average keystroke interval | < 50 ms | 200–400 ms |
 | Mouse movement count | 0–3 | 40–400+ |
-| Mouse entropy (direction spread) | ~0.01 | ~1.8 |
-| Field fill duration | 15–50 ms | 1,500–2,500 ms |
+| Mouse entropy (direction spread) | ~0.01 rad | ~1.8 rad |
+| Average field fill speed | 15–50 ms | 1,500–2,500 ms |
 | Instant fills (< 80 ms) | 4–8 | 0–1 |
 | Time on page | 0.5–3 s | 30–120 s |
-| WebDriver flag | Often `true` | `false` |
+| Tab switches | 0 | 2–6 |
+| WebDriver flag consistent | Often `true` | `false` |
+| Fields filled | 8 instantly | 2–3 at a time |
 
-The model includes an **adversarial bot class** — bots with randomized delays and simulated mouse jitter — to prevent simple evasion. AUC-ROC on the hold-out test set: **0.961**. False positive rate (humans flagged): **< 3%**.
+**Model training:** 10,000 synthetic sessions — 6,000 human (rush + careful profiles) · 4,000 bot (dumb + adversarial).  
+**AUC-ROC:** 0.961 &nbsp;|&nbsp; **False positive rate** (humans flagged): < 3%
 
-Scoring is gated: the system waits for `≥ 3 keystroke intervals` or `≥ 15 mouse events + 15 s on page` before emitting a score, so a fresh page load never penalizes a real user.
+Scoring is gated until `≥ 3 keystroke intervals` or `≥ 15 mouse events + 15 s on page` to avoid penalizing a session that just loaded the page.
+
+---
+
+## Scoring Gate Logic
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Backend
+    participant Redis
+    participant Model as XGBoost
+
+    Browser->>Backend: POST /queue/join {session_id}
+    Backend->>Redis: ZADD queue:sessions score=50 sid
+    Backend-->>Browser: {position, total}
+
+    loop Every 3s + on each keystroke (throttled 1.2s)
+        Browser->>Browser: collect telemetry snapshot
+        alt gate not passed
+            Browser->>Browser: skip — not enough data yet
+        else gate passed
+            Browser->>Backend: POST /session/score {telemetry}
+            Backend->>Redis: HGETALL session:{sid}
+            Backend->>Model: predict_proba(10 features)
+            Model-->>Backend: human probability
+            Backend->>Redis: ZADD queue:sessions score=new_score sid
+            Backend->>Redis: HSET session:{sid} human_score label
+            Backend-->>Browser: {human_score, label, confidence}
+            Backend--)Browser: WS broadcast → all clients re-render queue
+        end
+    end
+```
+
+---
+
+## API Reference
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/health` | — | Liveness check |
+| `POST` | `/queue/join` | — | Register session, returns initial position |
+| `GET` | `/queue/status/{session_id}` | — | Current score + position |
+| `POST` | `/session/score` | — | Submit telemetry, get human score |
+| `WS` | `/ws` | — | Real-time queue snapshot stream |
+| `GET` | `/admin/stats` | `X-Admin-Key` | Detection counters |
+| `POST` | `/admin/reset` | `X-Admin-Key` | Flush queue and session state |
+
+Full interactive docs at `http://localhost:8000/docs` when running locally.
 
 ---
 
@@ -109,7 +227,7 @@ npm install && npm run dev
 
 ## Bot Simulator
 
-A Playwright-based bot swarm ships with the project for load testing and demo use.
+A Playwright-based bot swarm ships with the project for load testing and live demos.
 
 ```bash
 cd simulator
@@ -118,16 +236,16 @@ pip install -r requirements.txt
 # Launch 20 concurrent bots
 python bot_sim.py --count 20
 
-# Tune aggression (seconds between requests)
+# Tune aggression
 python bot_sim.py --count 50 --delay 0.02
 ```
 
-Bots fill all form fields programmatically in under 50 ms, producing feature vectors far outside human distributions. Watch them score red and sink to queue bottom in real time on the admin dashboard.
+Bots fill all 8 form fields programmatically in under 50 ms, generating feature vectors that sit far outside the human training distribution. Watch them score red and sink to the queue bottom in real time on the admin dashboard.
 
 Reset between runs:
 
 ```bash
-./scripts/demo_reset.sh   # flushes Redis, clears session state
+./scripts/demo_reset.sh   # flushes Redis + session state
 ```
 
 ---
@@ -139,7 +257,7 @@ cd backend
 pytest tests/ -v
 ```
 
-All tests use mocked Redis (no live infrastructure required). The test suite covers health check, queue join (with browser UA validation), and admin reset authentication.
+Tests mock Redis entirely — no live infrastructure required. Coverage: health check, queue join (with browser UA validation), admin reset authentication.
 
 ---
 
@@ -148,28 +266,30 @@ All tests use mocked Redis (no live infrastructure required). The test suite cov
 | Layer | Technology |
 |---|---|
 | Backend API | FastAPI, Uvicorn, Pydantic v2 |
-| Queue store | Redis (sorted sets + hashes) |
-| ML model | XGBoost, scikit-learn, NumPy |
-| Real-time | WebSocket (Starlette) |
+| Queue store | Redis — sorted sets + hashes |
+| ML model | XGBoost, scikit-learn, NumPy, joblib |
+| Real-time | WebSocket (Starlette native) |
 | Frontend | React 18, Vite, Tailwind CSS |
-| Bot simulator | Playwright (Python) |
-| Infrastructure | Docker Compose (Redis) |
+| Bot simulator | Playwright (Python async) |
+| Infrastructure | Docker Compose (Redis only) |
+| Testing | pytest, pytest-asyncio, httpx ASGI transport |
 
 ---
 
 ## Security Notes
 
-- `.env` is gitignored. Never commit real secrets.
-- The `/admin/reset` endpoint requires an `X-Admin-Key` header.
-- User-Agent pre-filtering blocks headless-browser and scripted HTTP clients at the join endpoint before ML scoring runs.
-- All environment variables are validated at startup with warnings for insecure defaults.
+- `.env` is gitignored. Generate your own keys using the instructions in `.env.example`.
+- `/admin/*` endpoints require `X-Admin-Key` header. Key is validated at startup; a weak default triggers a warning.
+- User-Agent pre-filtering rejects headless-browser and scripted HTTP clients at join time, before ML scoring runs.
+- Telemetry scoring requires the session to have joined the queue first — prevents a bot from submitting crafted human telemetry against an arbitrary session ID.
+- Rate limiting on all endpoints: 60 req/min on join, 120 req/min on score.
 
 ---
 
 ## Roadmap
 
 - [ ] Device fingerprinting (canvas hash, WebGL renderer, font enumeration)
-- [ ] Federated model updates across zones — improves detection without centralising raw behavioral data
+- [ ] Federated model updates across railway zones — detection improves without centralising raw behavioral data
 - [ ] Aadhaar OTP escalation for sessions with human score < 40
 - [ ] Real-time demand forecasting to resize queue slots dynamically
 - [ ] Public SDK for third-party Indian railway booking platforms
