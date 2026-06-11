@@ -27,6 +27,7 @@ async def score_session_endpoint(payload: TelemetryPayload, request: Request):
         "is_bot": "1" if result.is_bot else "0",
         "label": result.label,
         "last_scored_at": time.time(),
+        "ml_scored": "1",
     })
     await r.expire(f"session:{sid}", 300)
 

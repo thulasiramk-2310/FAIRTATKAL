@@ -24,36 +24,31 @@ async def join_queue(body: JoinQueueRequest, request: Request):
     r = request.app.state.redis
     sid = body.session_id
 
-    # Block sessions already scored as strong bots (re-join after low ML score)
+    # If already in queue, return current position without resetting
     existing = await r.hgetall(f"session:{sid}")
     if existing:
-        stored_score = float(existing.get("human_score", 50))
-        if stored_score < 30:
-            raise HTTPException(
-                status_code=429,
-                detail="Access denied — automated request detected",
-            )
+        rank = await r.zrevrank("queue:sessions", sid)
+        position = (rank or 0) + 1
+        total = await r.zcard("queue:sessions")
+        return {"session_id": sid, "position": position, "total_in_queue": total}
 
     ua = request.headers.get("user-agent", "")
-    initial_score = 0.0 if _is_bot_ua(ua) else 50.0
-    is_bot = initial_score < 30
+    is_bot_agent = _is_bot_ua(ua)
+    # Bot UAs go to back (score 0); unscored browsers start at 50 (pending ML)
+    initial_score = 0.0 if is_bot_agent else 50.0
 
     await r.hset(f"session:{sid}", mapping={
         "human_score": initial_score,
-        "is_bot": "1" if is_bot else "0",
-        "label": "bot" if is_bot else "unknown",
+        "is_bot": "1" if is_bot_agent else "0",
+        "label": "bot" if is_bot_agent else "unknown",
         "joined_at": time.time(),
         "last_scored_at": time.time(),
     })
     await r.expire(f"session:{sid}", 300)
     await r.zadd("queue:sessions", {sid: initial_score})
 
-    if is_bot:
-        await r.incr("stats:bots_blocked")
-        raise HTTPException(
-            status_code=429,
-            detail="Access denied — automated request detected",
-        )
+    if is_bot_agent:
+        await r.incr("stats:bots_detected")
 
     rank = await r.zrevrank("queue:sessions", sid)
     position = (rank or 0) + 1
@@ -65,7 +60,7 @@ async def join_queue(body: JoinQueueRequest, request: Request):
 @router.post("/book")
 @limiter.limit("10/minute")
 async def book_ticket(body: JoinQueueRequest, request: Request):
-    """Server-side booking gate — rejects any session with human_score < 50."""
+    """Humans book freely. Bots wait until no humans (score >= 50) remain."""
     r = request.app.state.redis
     sid = body.session_id
     raw = await r.hgetall(f"session:{sid}")
@@ -76,20 +71,24 @@ async def book_ticket(body: JoinQueueRequest, request: Request):
     label = raw.get("label", "unknown")
 
     if score < 50:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Booking denied — behavioral score too low ({score}/100). Automated access suspected.",
-        )
+        # Bot session — only allowed once all humans have booked
+        human_count = int(await r.zcount("queue:sessions", 50, "+inf"))
+        if human_count > 0:
+            await r.incr("stats:bots_blocked")
+            raise HTTPException(
+                status_code=403,
+                detail=f"Bots go to the back — {human_count} human(s) still in queue.",
+            )
 
-    rank = await r.zrevrank("queue:sessions", sid)
-    position = (rank or 0) + 1
+    # Booking approved — remove from queue so human_count drops for waiting bots
+    await r.zrem("queue:sessions", sid)
 
     return {
         "session_id": sid,
         "approved": True,
         "human_score": score,
         "label": label,
-        "position": position,
+        "position": 0,
     }
 
 

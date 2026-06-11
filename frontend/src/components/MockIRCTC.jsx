@@ -432,6 +432,11 @@ export default function MockIRCTC() {
   const handleBook = async () => {
     setBookingBlocked(false)
     setBooking(true)
+    // Force-score before booking so the session always has an up-to-date score
+    try {
+      const result = await scoreSession(getPayload())
+      if (result) setMyScore(result)
+    } catch (_) {}
     try {
       await bookTicket(sessionId.current)
     } catch (_) {

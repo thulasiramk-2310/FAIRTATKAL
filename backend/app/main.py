@@ -79,17 +79,22 @@ async def broadcast_loop(app: FastAPI):
             mgr = app.state.manager
             members = await r.zrevrange("queue:sessions", 0, -1, withscores=True)
             queue_data = []
-            for i, (sid, score) in enumerate(members):
+            stale = []
+            for sid, score in members:
                 raw = await r.hgetall(f"session:{sid}")
-                if raw:
-                    queue_data.append({
-                        "session_id": sid,
-                        "human_score": float(raw.get("human_score", 50)),
-                        "is_bot": raw.get("is_bot", "0") == "1",
-                        "label": raw.get("label", "unknown"),
-                        "position": i + 1,
-                        "joined_at": float(raw.get("joined_at", 0)),
-                    })
+                if not raw:
+                    stale.append(sid)
+                    continue
+                queue_data.append({
+                    "session_id": sid,
+                    "human_score": float(raw.get("human_score", 50)),
+                    "is_bot": raw.get("is_bot", "0") == "1",
+                    "label": raw.get("label", "unknown"),
+                    "position": len(queue_data) + 1,
+                    "joined_at": float(raw.get("joined_at", 0)),
+                })
+            if stale:
+                await r.zrem("queue:sessions", *stale)
             total = len(queue_data)
             humans = sum(1 for q in queue_data if q["label"] == "human")
             bots = sum(1 for q in queue_data if q["label"] == "bot")

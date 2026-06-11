@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 
 export function useTelemetry(sessionId) {
   const d = useRef({
@@ -11,6 +11,12 @@ export function useTelemetry(sessionId) {
     tab_switches: 0,
     last_key_time: null,
   })
+
+  useEffect(() => {
+    const handler = () => { if (document.hidden) d.current.tab_switches += 1 }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [])
 
   const onKeyDown = useCallback(() => {
     const now = Date.now()

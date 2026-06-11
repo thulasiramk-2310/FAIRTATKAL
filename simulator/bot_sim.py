@@ -178,10 +178,10 @@ async def run_bot(
                 timeout=5,
             )
             if r.status_code == 200:
-                print(f"  {tag} ⚠️  BOOKING SUCCEEDED (score bypass!)")
+                print(f"  {tag} 🎫 BOOKING SUCCEEDED (humans done — bot's turn)")
             else:
                 data = r.json()
-                print(f"  {tag} ✅ BOOKING BLOCKED — {data.get('detail', r.status_code)}")
+                print(f"  {tag} ⏳ BOOKING DEFERRED — {data.get('detail', r.status_code)}")
 
     except httpx.RequestError as e:
         print(f"  {tag} Connection error: {e}")
