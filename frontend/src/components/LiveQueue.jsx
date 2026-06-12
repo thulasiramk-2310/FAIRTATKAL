@@ -27,9 +27,9 @@ const QueueCard = forwardRef(function QueueCard({ entry, highlightId }, ref) {
   // telemetry arrives — render those as neutral "waiting", not a yellow 50.
   const isPending = entry.label === 'unknown' || entry.human_score === 50
 
-  const borderColor = isHighlighted ? '#2563eb'
+  const borderColor = isHighlighted ? '#14418a'
     : isPending ? '#d1d5db' : isBot ? '#dc2626' : '#16a34a'
-  const bgColor = isHighlighted ? '#eff6ff'
+  const bgColor = isHighlighted ? '#eef4ff'
     : isPending ? '#f9fafb' : isBot ? '#fef2f2' : '#f0fdf4'
 
   return (
@@ -53,7 +53,7 @@ const QueueCard = forwardRef(function QueueCard({ entry, highlightId }, ref) {
     >
       <div style={{
         width: 24, height: 24, borderRadius: '50%',
-        background: entry.position <= 3 ? '#2563eb' : '#e5e7eb',
+        background: entry.position <= 3 ? '#14418a' : '#e5e7eb',
         color: entry.position <= 3 ? 'white' : '#6b7280',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 11, fontWeight: 700, flexShrink: 0,
@@ -65,7 +65,7 @@ const QueueCard = forwardRef(function QueueCard({ entry, highlightId }, ref) {
         <div style={{ fontSize: 12, fontWeight: 600, color: '#1f2937', fontFamily: 'monospace' }}>
           {entry.session_id.slice(0, 18)}…
           {isHighlighted && (
-            <span style={{ marginLeft: 6, fontSize: 10, color: '#2563eb', fontFamily: 'sans-serif' }}>
+            <span style={{ marginLeft: 6, fontSize: 10, color: '#14418a', fontFamily: 'sans-serif' }}>
               ← YOU
             </span>
           )}
@@ -104,7 +104,7 @@ export default function LiveQueue({ highlightId, queue, stats, connected }) {
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1f2937' }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#14418a' }}>
             Live Tatkal Queue
           </h2>
           <p style={{ margin: 0, fontSize: 11, color: '#6b7280' }}>

@@ -96,6 +96,12 @@ function resolveStationCode(input) {
   return match ? match.code : raw.toUpperCase().slice(0, 5)
 }
 
+// ── IRCTC brand tokens ────────────────────────────────────────────────────────
+
+const IR_ORANGE  = '#FF6600'   // IRCTC primary CTA orange
+const IR_BLUE    = '#14418a'   // IRCTC header navy
+const IR_NAVBG   = '#0f3272'   // darker nav strip
+
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
 const inputStyle = {
@@ -108,7 +114,7 @@ const labelStyle = {
   marginBottom: 5, display: 'block', textTransform: 'uppercase', letterSpacing: 0.4,
 }
 const btnPrimary = {
-  background: '#1d4ed8', color: 'white', border: 'none', borderRadius: 4,
+  background: IR_ORANGE, color: 'white', border: 'none', borderRadius: 4,
   padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
   fontFamily: 'inherit', letterSpacing: 0.2,
 }
@@ -122,7 +128,7 @@ function Highlight({ text, query }) {
   return (
     <span>
       {text.slice(0, idx)}
-      <span style={{ fontWeight: 700, color: '#1d4ed8' }}>{text.slice(idx, idx + query.length)}</span>
+      <span style={{ fontWeight: 700, color: IR_ORANGE }}>{text.slice(idx, idx + query.length)}</span>
       {text.slice(idx + query.length)}
     </span>
   )
@@ -205,10 +211,10 @@ function StationInput({ value, onChange, onFocusCb, onBlurCb, placeholder, id })
               borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none',
               background: 'white', transition: 'background 0.1s',
             }}
-              onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+              onMouseEnter={e => e.currentTarget.style.background = '#fff4ee'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}
             >
-              <span style={{ fontWeight: 800, color: '#1d4ed8', minWidth: 48, flexShrink: 0, fontFamily: 'monospace', fontSize: 12, letterSpacing: 0.5 }}>
+              <span style={{ fontWeight: 800, color: IR_ORANGE, minWidth: 48, flexShrink: 0, fontFamily: 'monospace', fontSize: 12, letterSpacing: 0.5 }}>
                 <Highlight text={s.code} query={rawQ.toUpperCase()} />
               </span>
               <span style={{ color: '#111827', fontSize: 13 }}>
@@ -244,11 +250,12 @@ function TatkalCountdown() {
 
   return (
     <span style={{
-      background: urgent ? '#dc2626' : '#92400e',
+      background: urgent ? '#dc2626' : 'rgba(0,0,0,0.25)',
       color: 'white', fontFamily: 'monospace', fontWeight: 800,
       padding: '2px 9px', borderRadius: 4, fontSize: 13, letterSpacing: 1.5,
       display: 'inline-block', minWidth: 74, textAlign: 'center',
       animation: urgent ? 'urgentPulse 1s infinite' : 'none',
+      border: '1px solid rgba(255,255,255,0.35)',
     }}>
       {h}:{m}:{s}
     </span>
@@ -263,11 +270,11 @@ function TrainCard({ train, trainClass, onBook }) {
       border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden',
       transition: 'box-shadow 0.15s, border-color 0.15s', background: 'white',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(59,130,246,0.12)' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = IR_ORANGE; e.currentTarget.style.boxShadow = '0 2px 12px rgba(255,102,0,0.14)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none' }}
     >
       <div style={{ background: '#f8fafc', padding: '9px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1d4ed8', fontSize: 13 }}>{train.num}</span>
+        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: IR_ORANGE, fontSize: 13 }}>{train.num}</span>
         <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{train.name}</span>
         <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#dcfce7', color: '#15803d' }}>
           RUNS DAILY
@@ -277,7 +284,7 @@ function TrainCard({ train, trainClass, onBook }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', lineHeight: 1 }}>{train.dep}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginTop: 2 }}>{train.from}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: IR_BLUE, marginTop: 2 }}>{train.from}</div>
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
             <div style={{ fontSize: 10, color: '#9ca3af' }}>————————→</div>
@@ -285,7 +292,7 @@ function TrainCard({ train, trainClass, onBook }) {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', lineHeight: 1 }}>{train.arr}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginTop: 2 }}>{train.to}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: IR_BLUE, marginTop: 2 }}>{train.to}</div>
             {train.days && <div style={{ fontSize: 9, color: '#d97706', fontWeight: 700 }}>{train.days} day</div>}
           </div>
         </div>
@@ -464,11 +471,18 @@ export default function MockIRCTC() {
       {/* ── Fixed top: header + nav + banner ── */}
       <div style={{ flexShrink: 0 }}>
 
+        {/* Top orange stripe — IRCTC brand accent */}
+        <div style={{ height: 5, background: `linear-gradient(90deg, ${IR_ORANGE} 0%, #ff8c00 100%)` }} />
+
         {/* Header */}
-        <div style={{ background: '#14418a', color: 'white' }}>
-          <div style={{ padding: '0 40px', display: 'flex', alignItems: 'center', gap: 14, height: 54 }}>
-            <div style={{ background: 'white', color: '#14418a', fontWeight: 900, fontSize: 14, padding: '3px 8px', borderRadius: 3, letterSpacing: 1.5, flexShrink: 0 }}>
-              IRCTC
+        <div style={{ background: IR_BLUE, color: 'white' }}>
+          <div style={{ padding: '0 40px', display: 'flex', alignItems: 'center', gap: 14, height: 56 }}>
+            {/* Ashoka Chakra + wordmark */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 26, lineHeight: 1, filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.3))' }}>☸</span>
+              <div style={{ background: 'white', color: IR_BLUE, fontWeight: 900, fontSize: 15, padding: '3px 9px', borderRadius: 3, letterSpacing: 1.5 }}>
+                IRCTC
+              </div>
             </div>
             <div style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.3 }}>Indian Railway Catering and Tourism Corporation Ltd.</div>
@@ -484,15 +498,23 @@ export default function MockIRCTC() {
           </div>
         </div>
 
+        {/* Demo disclaimer */}
+        <div style={{ background: '#1e3a5f', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ padding: '5px 40px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
+            <span style={{ background: IR_ORANGE, color: 'white', fontWeight: 800, fontSize: 9, padding: '1px 6px', borderRadius: 3, letterSpacing: 1, flexShrink: 0 }}>DEMO</span>
+            <span>This is a demonstration interface — FairTatkal bot-detection layer. Not affiliated with IRCTC Ltd. or the Ministry of Railways.</span>
+          </div>
+        </div>
+
         {/* Nav */}
-        <div style={{ background: '#0f3272', borderTop: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+        <div style={{ background: IR_NAVBG, overflow: 'hidden' }}>
           <div style={{ padding: '0 40px', display: 'flex' }}>
             {NAV_TABS.map(tab => (
               <div key={tab} onClick={() => setActiveNav(tab)} style={{
                 padding: '10px 22px', fontSize: 13, cursor: 'pointer',
                 fontWeight: activeNav === tab ? 700 : 400,
                 color: activeNav === tab ? 'white' : 'rgba(255,255,255,0.58)',
-                borderBottom: activeNav === tab ? '3px solid white' : '3px solid transparent',
+                borderBottom: activeNav === tab ? `3px solid ${IR_ORANGE}` : '3px solid transparent',
                 transition: 'color 0.15s', userSelect: 'none',
               }}
                 onMouseEnter={e => { if (activeNav !== tab) e.currentTarget.style.color = 'rgba(255,255,255,0.88)' }}
@@ -506,11 +528,11 @@ export default function MockIRCTC() {
         </div>
 
         {/* Tatkal banner */}
-        <div style={{ background: '#f59e0b' }}>
-          <div style={{ padding: '7px 40px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: 600, color: '#78350f' }}>
+        <div style={{ background: IR_ORANGE }}>
+          <div style={{ padding: '7px 40px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, fontWeight: 700, color: 'white' }}>
             <span style={{ fontSize: 15 }}>⚡</span>
             <span>TATKAL BOOKING OPEN</span>
-            <span style={{ opacity: 0.6 }}>—</span>
+            <span style={{ opacity: 0.7 }}>—</span>
             <span>Window closes in</span>
             <TatkalCountdown />
             <span>Book before it's gone.</span>
@@ -523,7 +545,7 @@ export default function MockIRCTC() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Left: scrollable booking content */}
-        <div style={{ flex: 1, overflowY: 'auto', background: '#eef2f7', minWidth: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', background: '#edf2f7', minWidth: 0 }}>
           <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 32px' }}>
 
             {/* Booking card */}
@@ -551,7 +573,7 @@ export default function MockIRCTC() {
                       </span>
                     </div>
                     {(livePosition ?? myPosition) && (
-                      <div style={{ marginLeft: 'auto', fontWeight: 700, color: '#1d4ed8', fontSize: 13 }}>
+                      <div style={{ marginLeft: 'auto', fontWeight: 700, color: IR_BLUE, fontSize: 13 }}>
                         Queue position: #{livePosition ?? myPosition}
                       </div>
                     )}
@@ -566,14 +588,14 @@ export default function MockIRCTC() {
                   return (
                     <div key={s} style={{
                       flex: 1, padding: '11px 8px', fontSize: 11, fontWeight: 600, textAlign: 'center',
-                      color: step === s ? '#1d4ed8' : cur > i ? '#16a34a' : '#9ca3af',
-                      borderBottom: step === s ? '2px solid #1d4ed8' : '2px solid transparent',
+                      color: step === s ? IR_ORANGE : cur > i ? '#16a34a' : '#9ca3af',
+                      borderBottom: step === s ? `2px solid ${IR_ORANGE}` : '2px solid transparent',
                       marginBottom: -1, whiteSpace: 'nowrap',
                     }}>
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         width: 16, height: 16, borderRadius: '50%', fontSize: 10, fontWeight: 700,
-                        background: step === s ? '#1d4ed8' : cur > i ? '#16a34a' : '#e5e7eb',
+                        background: step === s ? IR_ORANGE : cur > i ? '#16a34a' : '#e5e7eb',
                         color: cur >= i ? 'white' : '#9ca3af', marginRight: 5,
                       }}>
                         {cur > i ? '✓' : i + 1}
@@ -682,7 +704,7 @@ export default function MockIRCTC() {
                         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700 }}>Passenger Details</h2>
                       </div>
                       {selectedTrain && (
-                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 14px', marginBottom: 22, fontSize: 13, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        <div style={{ background: '#fff4ee', border: `1px solid ${IR_ORANGE}44`, borderRadius: 6, padding: '10px 14px', marginBottom: 22, fontSize: 13, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                           <span><b>{selectedTrain.num}</b> — {selectedTrain.name}</span>
                           <span style={{ color: '#6b7280' }}>|</span>
                           <span>{selectedTrain.from} → {selectedTrain.to}</span>
@@ -766,7 +788,7 @@ export default function MockIRCTC() {
                             <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Total Amount</div>
                             <div style={{ fontSize: 11, color: '#9ca3af' }}>incl. Tatkal charges + IRCTC fee</div>
                           </div>
-                          <div style={{ fontSize: 24, fontWeight: 800, color: '#1d4ed8' }}>₹{selectedTrain?.price.toLocaleString('en-IN')}</div>
+                          <div style={{ fontSize: 24, fontWeight: 800, color: IR_ORANGE }}>₹{selectedTrain?.price.toLocaleString('en-IN')}</div>
                         </div>
                       </div>
                       <AnimatePresence>
