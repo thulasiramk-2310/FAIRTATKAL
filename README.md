@@ -13,13 +13,16 @@
 
 ## Screenshots
 
-**Booking UI — bots flooding in, human at position #2**
+**Booking UI — 20 bots in queue, humans verified and pushed to front**
 ![Booking UI](docs/screenshots/booking-ui.png)
 
-**Live queue — humans front, bots pushed to back in real time**
+**Passenger form — human scored 68.9/100, holding position #1 while bots wait**
+![Passenger Form](docs/screenshots/passenger-form.png)
+
+**Live queue — humans at top, bots cascading to back with falling scores**
 ![Live Queue with bots](docs/screenshots/live-queue.png)
 
-**Admin dashboard — real-time detection stats**
+**Admin dashboard — 81% detection rate, 153 bot attempts blocked**
 ![Admin Dashboard](docs/screenshots/admin-dashboard.png)
 
 ---
