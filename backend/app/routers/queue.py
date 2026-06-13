@@ -80,8 +80,11 @@ async def book_ticket(body: JoinQueueRequest, request: Request):
                 detail=f"Bots go to the back — {human_count} human(s) still in queue.",
             )
 
-    # Booking approved — remove from queue so human_count drops for waiting bots
+    # Booking approved — remove from queue and delete the session hash so
+    # any in-flight /session/score call can't re-insert this session via ZADD.
     await r.zrem("queue:sessions", sid)
+    await r.delete(f"session:{sid}")
+    await r.incr("stats:bookings_completed")
 
     return {
         "session_id": sid,

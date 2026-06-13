@@ -451,7 +451,10 @@ export default function MockIRCTC() {
       setBooking(false)
       return
     }
-    try { setMyScore(await scoreSession(getPayload())) } catch (_) {}
+    // Stop telemetry — session is leaving the queue. Calling scoreSession here
+    // would re-insert the session into the sorted set via ZADD before the next
+    // WebSocket broadcast clears it.
+    clearInterval(scoreInterval.current)
     await new Promise(r => setTimeout(r, 1200))
     setPnr('PNR' + Math.floor(Math.random() * 9000000 + 1000000))
     setStep('booked')
