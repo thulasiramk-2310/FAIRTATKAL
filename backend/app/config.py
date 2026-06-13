@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     db_path: str = "fairtatkal.db"
     secret_key: str = "dev-secret-change-in-prod"
     admin_key: str = "dev-admin-key-change-in-prod"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     model_config = {"env_file": ".env"}
 

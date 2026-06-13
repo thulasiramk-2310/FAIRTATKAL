@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 
-// Route through the Vite dev-server proxy (/ws → ws://localhost:8000)
-// so the connection uses the same origin as the page and avoids CORS/CSP issues.
-const WS_URL = `ws://${window.location.host}/ws/queue`
+const WS_URL = import.meta.env.VITE_WS_URL
+  ? `${import.meta.env.VITE_WS_URL}/ws/queue`
+  : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/queue`
 
 export function useQueue() {
   const [queue, setQueue] = useState([])

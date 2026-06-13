@@ -1,4 +1,4 @@
-const BASE = '/api'
+const BASE = import.meta.env.VITE_API_URL || '/api'
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || 'dev-admin-key-change-in-prod'
 const adminHeaders = { 'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY }
 
