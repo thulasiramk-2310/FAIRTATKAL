@@ -52,10 +52,18 @@ def score_session(payload: TelemetryPayload) -> ScoreResponse:
 
         prob_human = float(model.predict_proba(X)[0][1])
 
-        # Browser autofill is a strong human signal — bots fill forms via
-        # Playwright/httpx and never use a browser's saved credentials.
-        # A returning passenger who autofills should be rewarded, not penalised.
-        if payload.autofill_used and prob_human < 0.78:
+        # Browser autofill is a strong human signal for returning passengers.
+        # But automation tools (Playwright, Selenium) also trigger autofill detection
+        # because their .fill() fires onChange without a preceding keydown — and some
+        # tool configurations mask navigator.webdriver so the UA check isn't reliable.
+        # Require corroborating human evidence: a real user must at minimum move the
+        # mouse to click the autofill suggestion or type elsewhere on the form.
+        # Zero mouse + zero keystroke variance + autofill = programmatic fill, not human.
+        has_human_activity = (
+            (payload.mouse_movement_count or 0) > 5
+            or (payload.keystroke_variance or 0) > 0
+        )
+        if payload.autofill_used and has_human_activity and prob_human < 0.78:
             prob_human = 0.78
 
         human_score = round(prob_human * 100, 1)
