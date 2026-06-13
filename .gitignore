@@ -28,6 +28,6 @@ dist/
 .agents/
 .claude/
 .code-review-graph/
+.playwright-mcp/
 skills-lock.json
-CLAUDE.md
 CLAUDE.md
