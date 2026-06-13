@@ -334,6 +334,7 @@ Tests use an in-process ASGI transport with mocked Redis — no live infrastruct
 - `/session/score` rejects payloads for session IDs that never called `/queue/join` — prevents a bot submitting crafted human telemetry against an arbitrary victim session.
 - Rate limiting: 60 req/min on join · 120 req/min on score · 10 req/min on book.
 - Booking gate force-scores the session at click time so the gate always has a fresh ML score, not a stale cached value.
+- After booking confirms, the session hash is deleted from Redis (not just removed from the sorted set). This prevents a race where an in-flight `POST /session/score` call re-inserts the session into the queue via `ZADD` before the WebSocket broadcast reflects the removal. The frontend also clears its telemetry interval on booking confirmation as a belt-and-suspenders guard.
 
 ---
 
