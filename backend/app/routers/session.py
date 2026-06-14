@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.post("/score", response_model=ScoreResponse)
-@limiter.limit("120/minute")
+@limiter.limit("600/minute")
 async def score_session_endpoint(payload: TelemetryPayload, request: Request):
     r = request.app.state.redis
     sid = payload.session_id

@@ -19,7 +19,7 @@ def _is_bot_ua(ua: str) -> bool:
 
 
 @router.post("/join")
-@limiter.limit("60/minute")
+@limiter.limit("300/minute")
 async def join_queue(body: JoinQueueRequest, request: Request):
     r = request.app.state.redis
     sid = body.session_id
